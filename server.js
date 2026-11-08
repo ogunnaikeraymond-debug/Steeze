@@ -1,16 +1,13 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Enable CORS so your Vercel frontend can talk to this Render backend
 app.use(cors());
 app.use(express.json());
-
-// Serve static frontend files
-app.use(express.static(path.join(__dirname, 'public')));
 
 // API endpoint to fetch TikTok data via TikWM
 app.post('/api/download', async (req, res) => {
@@ -39,5 +36,5 @@ app.post('/api/download', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Prime server is running on port ${PORT}`);
+    console.log(`Prime backend is running on port ${PORT}`);
 });

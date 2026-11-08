@@ -1,7 +1,7 @@
 {
-  "name": "prime-tiktok-downloader",
+  "name": "prime-tiktok-backend",
   "version": "1.0.0",
-  "description": "TikTok Video Downloader powered by TikWM API",
+  "description": "Backend API for Prime TikTok Downloader",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
