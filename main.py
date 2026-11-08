@@ -1,10 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 import yt_dlp
+import httpx
 
 app = FastAPI()
 
-# Enable CORS for your Vercel frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -33,7 +34,6 @@ def download_tiktok(payload: dict):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             
-            # Format the extracted metadata to match your frontend expectations
             return {
                 "code": 0,
                 "data": {
@@ -52,4 +52,24 @@ def download_tiktok(payload: dict):
     except Exception as e:
         print(f"Extraction Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to extract video: {str(e)}")
+
+@app.get("/api/download-file")
+async def download_file(url: str = Query(...)):
+    """Proxies the TikTok CDN stream and forces a direct file download."""
+    try:
+        client = httpx.AsyncClient(follow_redirects=True, timeout=60.0)
+        req = client.build_request("GET", url)
+        r = await client.send(req, stream=True)
         
+        if r.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to fetch video stream from CDN")
+
+        return StreamingResponse(
+            r.aiter_bytes(),
+            media_type="video/mp4",
+            headers={
+                "Content-Disposition": 'attachment; filename="prime_tiktok_video.mp4"'
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
