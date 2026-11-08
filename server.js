@@ -1,56 +1,68 @@
 const express = require('express');
 const cors = require('cors');
-const fetch = require('node-fetch');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Allow your frontend domain later (or keep * for now)
-app.use(cors({
-  origin: '*' // Change this later to your frontend domain for security
-}));
-
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-// Health check (Render uses this)
 app.get('/', (req, res) => {
-  res.json({ status: 'TikTok Downloader API is running' });
+  res.json({ status: 'Prime API is running' });
 });
 
-// Main endpoint
 app.get('/api/download', async (req, res) => {
   try {
     const { url } = req.query;
 
     if (!url) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Missing url parameter' 
+      return res.status(400).json({
+        success: false,
+        message: 'Missing url parameter'
       });
     }
 
-    // Call TikWM API with HD
     const apiUrl = `https://www.tikwm.com/api/?url=${encodeURIComponent(url)}&hd=1`;
-    
+
     const response = await fetch(apiUrl, {
+      method: 'GET',
       headers: {
-        'User-Agent': 'Mozilla/5.0'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Referer': 'https://www.tikwm.com/'
       }
     });
+
+    const contentType = response.headers.get('content-type') || '';
+
+    // If TikWM returns HTML instead of JSON (rate limit / block)
+    if (!contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('TikWM returned non-JSON:', text.substring(0, 200));
+      return res.status(502).json({
+        success: false,
+        message: 'TikWM is temporarily unavailable or rate-limited. Please try again in a few seconds.'
+      });
+    }
 
     const data = await response.json();
 
     if (data.code !== 0) {
       return res.status(400).json({
         success: false,
-        message: data.msg || 'Failed to fetch video'
+        message: data.msg || 'Failed to fetch video from TikWM'
       });
     }
 
     const video = data.data;
-
-    // Prefer HD → No watermark → Watermarked
     const downloadUrl = video.hdplay || video.play || video.wmplay;
+
+    if (!downloadUrl) {
+      return res.status(404).json({
+        success: false,
+        message: 'No downloadable video found'
+      });
+    }
 
     res.json({
       success: true,
@@ -81,14 +93,14 @@ app.get('/api/download', async (req, res) => {
     });
 
   } catch (error) {
-    console.error(error);
+    console.error('Server Error:', error.message);
     res.status(500).json({
       success: false,
-      message: 'Server error. Please try again later.'
+      message: 'Server error: ' + error.message
     });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Prime API running on port ${PORT}`);
 });
