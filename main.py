@@ -6,6 +6,7 @@ import httpx
 
 app = FastAPI()
 
+# Enable CORS so your Vercel frontend can communicate with this backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,6 +35,7 @@ def download_tiktok(payload: dict):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             
+            # Map metadata to match your frontend expectations
             return {
                 "code": 0,
                 "data": {
@@ -55,21 +57,25 @@ def download_tiktok(payload: dict):
 
 @app.get("/api/download-file")
 async def download_file(url: str = Query(...)):
-    """Proxies the TikTok CDN stream and forces a direct file download."""
+    """Proxies the TikTok CDN stream with proper browser headers and forces a direct file download."""
     try:
-        client = httpx.AsyncClient(follow_redirects=True, timeout=60.0)
-        req = client.build_request("GET", url)
-        r = await client.send(req, stream=True)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Referer": "https://www.tiktok.com/",
+        }
         
-        if r.status_code != 200:
-            raise HTTPException(status_code=400, detail="Failed to fetch video stream from CDN")
+        async with httpx.AsyncClient(follow_redirects=True, timeout=60.0) as client:
+            r = await client.get(url, headers=headers, stream=True)
+            
+            if r.status_code != 200:
+                raise HTTPException(status_code=400, detail=f"Failed to fetch video stream from CDN (Status: {r.status_code})")
 
-        return StreamingResponse(
-            r.aiter_bytes(),
-            media_type="video/mp4",
-            headers={
-                "Content-Disposition": 'attachment; filename="prime_tiktok_video.mp4"'
-            }
-        )
+            return StreamingResponse(
+                r.aiter_bytes(),
+                media_type="video/mp4",
+                headers={
+                    "Content-Disposition": 'attachment; filename="prime_tiktok_video.mp4"'
+                }
+            )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
