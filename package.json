@@ -1,0 +1,12 @@
+{
+  "name": "prime-chat",
+  "version": "1.0.0",
+  "description": "Prime Chat Application",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
